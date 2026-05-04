@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -195,7 +195,7 @@ const AdminEvents = () => {
       setOpen(false);
       resetForm();
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       console.log("❌ Save error:", err.message);
       setHasConflict(true);
       toast.error(err.message || "Failed to save event");
@@ -211,7 +211,7 @@ const AdminEvents = () => {
       queryClient.invalidateQueries({ queryKey: ["admin-events"] });
       toast.success("Event deleted!");
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: Error) => toast.error(err.message),
   });
 
   return (

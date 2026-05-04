@@ -1,20 +1,9 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { AuthContext, type AuthContextType } from "./auth-context";
 import type { AppRole } from "@/types/database";
 
-interface AuthContextType {
-  session: Session | null;
-  user: User | null;
-  role: AppRole | null;
-  profile: { full_name: string; register_number: string | null; department: string | null } | null;
-  loading: boolean;
-  signUp: (email: string, password: string, fullName: string, registerNumber?: string, department?: string) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
@@ -28,7 +17,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       supabase.from("user_roles").select("role").eq("user_id", userId),
       supabase.from("profiles").select("full_name, register_number, department").eq("user_id", userId).single(),
     ]);
-    setRole((roles?.[0]?.role as AppRole) ?? "student");
+
+    const resolvedRole =
+      roles?.find((roleItem) => roleItem.role === "admin")?.role ||
+      (roles?.[0]?.role as AppRole) ||
+      "student";
+
+    setRole(resolvedRole);
     setProfile(prof ?? null);
   };
 
@@ -58,17 +53,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string, registerNumber?: string, department?: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { full_name: fullName } },
     });
     if (error) throw error;
 
-    // Update profile with extra fields after signup
-    const { data: { user: newUser } } = await supabase.auth.getUser();
+    const newUser = data?.user ?? data?.session?.user;
     if (newUser && (registerNumber || department)) {
-      await supabase.from("profiles").update({ register_number: registerNumber, department }).eq("user_id", newUser.id);
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ register_number: registerNumber, department })
+        .eq("user_id", newUser.id);
+      if (profileError) throw profileError;
     }
   };
 
@@ -88,8 +86,3 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
-};

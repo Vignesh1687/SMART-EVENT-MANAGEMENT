@@ -1,0 +1,3 @@
+$env:SUPABASE_DB_PASSWORD = 'avs7396581364$A'
+Write-Host "SUPABASE_DB_PASSWORD=$env:SUPABASE_DB_PASSWORD"
+npx supabase db push

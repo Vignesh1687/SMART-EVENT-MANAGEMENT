@@ -1,4 +1,4 @@
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { GraduationCap, Calendar, ClipboardList, LayoutDashboard, LogOut, Menu, X, BarChart3, Grid3x3 } from "lucide-react";

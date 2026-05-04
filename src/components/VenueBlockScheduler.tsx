@@ -18,22 +18,31 @@ export const VenueBlockScheduler = () => {
   const [filterStatus, setFilterStatus] = useState<"all" | "available" | "occupied" | "upcoming">("all");
 
   useEffect(() => {
-    const loadBlocks = async () => {
-      setLoading(true);
+    const loadBlocks = async (showLoading = false) => {
+      if (showLoading) {
+        setLoading(true);
+      }
+
       const blockStatus = await getVenueBlocksStatus();
-      setBlocks(blockStatus);
-      setLoading(false);
+      setBlocks((prevBlocks) => {
+        const isEqual = JSON.stringify(prevBlocks) === JSON.stringify(blockStatus);
+        return isEqual ? prevBlocks : blockStatus;
+      });
+
+      if (showLoading) {
+        setLoading(false);
+      }
     };
 
-    loadBlocks();
+    loadBlocks(true);
     
     // Refresh every 5 seconds instead of 30 for real-time updates
-    const interval = setInterval(loadBlocks, 5000);
+    const interval = setInterval(() => loadBlocks(false), 5000);
     
     // Also refetch when page becomes visible (tab focus)
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        loadBlocks();
+        loadBlocks(false);
       }
     };
     
@@ -116,7 +125,7 @@ export const VenueBlockScheduler = () => {
               <select
                 id="status-filter"
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as any)}
+                onChange={(e) => setFilterStatus(e.target.value as "all" | "available" | "occupied" | "upcoming")}
                 className="w-full border rounded px-3 py-2"
               >
                 <option value="all">All Blocks</option>

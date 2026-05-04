@@ -1,12 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, MapPin, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { generateODLetter } from "@/lib/od-letter";
+import { Database } from "@/integrations/supabase/types";
+
+type RegistrationWithEvent = Database['public']['Tables']['registrations']['Row'] & {
+  events?: Database['public']['Tables']['events']['Row'];
+};
 
 const MyEvents = () => {
   const { user, profile } = useAuth();
@@ -34,7 +39,7 @@ const MyEvents = () => {
         <p className="text-muted-foreground text-center py-12">You haven't registered for any events yet.</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {registrations.map((reg: any) => (
+          {registrations.map((reg: RegistrationWithEvent) => (
             <Card key={reg.id}>
               <CardHeader>
                 <div className="flex items-start justify-between">

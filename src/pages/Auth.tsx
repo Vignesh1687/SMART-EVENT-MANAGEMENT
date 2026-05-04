@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,7 +30,7 @@ const Auth = () => {
       await signIn(loginEmail, loginPassword);
       toast.success("Logged in successfully!");
       navigate("/");
-    } catch (err: any) {
+    } catch (err: Error) {
       toast.error(err.message || "Login failed");
     } finally {
       setLoading(false);
@@ -44,7 +44,7 @@ const Auth = () => {
       await signUp(signupEmail, signupPassword, signupName, signupRegNo, signupDept);
       toast.success("Account created! You're now logged in.");
       navigate("/");
-    } catch (err: any) {
+    } catch (err: Error) {
       toast.error(err.message || "Signup failed");
     } finally {
       setLoading(false);
