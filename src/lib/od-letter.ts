@@ -89,7 +89,7 @@ export async function generateODLetter(data: ODLetterData) {
   const studentDescriptor = studentDetails.length > 0 ? ` (${studentDetails.join(" | ")})` : "";
 
   const bodyLines = [
-    `This is to certify that ${studentName}${studentDescriptor} has been granted On-Duty permission for attending the event "${data.eventName}"${eventTypeSegment} held on ${format(new Date(data.eventDate), "PPP")}${eventTimeSegment}${eventVenueSegment}.",
+    `This is to certify that ${studentName}${studentDescriptor} has been granted On-Duty permission for attending the event "${data.eventName}"${eventTypeSegment} held on ${format(new Date(data.eventDate), "PPP")}${eventTimeSegment}${eventVenueSegment}.`,
     "",
     "The student is permitted to be absent from regular classes on the above-mentioned date for the purpose of participating in the said event.",
     "",
