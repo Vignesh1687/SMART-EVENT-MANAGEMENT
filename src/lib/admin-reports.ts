@@ -13,6 +13,12 @@ export interface StudentParticipation {
   eventCount: number;
 }
 
+export interface MultiEventStudent {
+  profile: Profile;
+  events: Event[];
+  eventCount: number;
+}
+
 export interface StudentSameDayConflict {
   profile: Profile;
   conflictGroups: Array<{
@@ -21,6 +27,32 @@ export interface StudentSameDayConflict {
   }>;
   totalConflictDays: number;
 }
+
+export interface ApprovalRecord {
+  registrationId: string;
+  status: "approved" | "rejected";
+  updatedAt: string;
+  profile: Profile | null;
+  event: Event | null;
+}
+
+const getStudentUserIds = async (): Promise<string[]> => {
+  const { data: adminRoles, error: adminError } = await supabase
+    .from("user_roles")
+    .select("user_id")
+    .eq("role", "admin");
+  if (adminError) throw adminError;
+
+  const adminIds = (adminRoles || []).map((row: any) => row.user_id);
+  const { data: profiles, error: profileError } = await supabase
+    .from("profiles")
+    .select("user_id");
+  if (profileError) throw profileError;
+
+  return (profiles || [])
+    .map((row: any) => row.user_id)
+    .filter((userId) => !adminIds.includes(userId));
+};
 
 /**
  * Get event-wise participation report
@@ -80,9 +112,11 @@ export const getEventParticipationReport = async (): Promise<EventReport[]> => {
  */
 export const getStudentParticipationReport = async (): Promise<StudentParticipation[]> => {
   try {
-    const { data: profiles, error: profileError } = await supabase
+    const studentIds = await getStudentUserIds();
+  const { data: profiles, error: profileError } = await supabase
       .from("profiles")
       .select("*")
+      .in("user_id", studentIds)
       .order("full_name", { ascending: true });
 
     if (profileError) throw profileError;
@@ -130,10 +164,11 @@ export const getStudentParticipationReport = async (): Promise<StudentParticipat
  */
 export const getMultiEventStudents = async (): Promise<MultiEventStudent[]> => {
   try {
-    // Get all students with registrations (any status)
+    const studentIds = await getStudentUserIds();
     const { data: profiles, error: profileError } = await supabase
       .from("profiles")
-      .select("*");
+      .select("*")
+      .in("user_id", studentIds);
 
     if (profileError) throw profileError;
 
@@ -181,9 +216,11 @@ export const getMultiEventStudents = async (): Promise<MultiEventStudent[]> => {
  */
 export const getSameDayConflictStudents = async (): Promise<StudentSameDayConflict[]> => {
   try {
+    const studentIds = await getStudentUserIds();
     const { data: profiles, error: profileError } = await supabase
       .from("profiles")
-      .select("*");
+      .select("*")
+      .in("user_id", studentIds);
 
     if (profileError) throw profileError;
 
@@ -283,6 +320,56 @@ export const getSameDayConflictStudents = async (): Promise<StudentSameDayConfli
     return conflictStudents;
   } catch (error) {
     console.error("Error getting same-day conflict students:", error);
+    return [];
+  }
+};
+
+export const getApprovalRecordsByDate = async (date: string): Promise<ApprovalRecord[]> => {
+  try {
+    if (!date) return [];
+
+    const { data: registrations, error: regError } = await supabase
+      .from("registrations")
+      .select("id, user_id, event_id, status, updated_at")
+      .in("status", ["approved", "rejected"])
+      .order("updated_at", { ascending: false });
+
+    if (regError) throw regError;
+
+    const selectedDate = date;
+    const filtered = (registrations || []).filter((reg: any) => {
+      const updatedDate = new Date(reg.updated_at).toISOString().slice(0, 10);
+      return updatedDate === selectedDate;
+    });
+
+    if (filtered.length === 0) return [];
+
+    const userIds = [...new Set(filtered.map((reg: any) => reg.user_id))];
+    const eventIds = [...new Set(filtered.map((reg: any) => reg.event_id))];
+
+    const { data: profiles, error: profileError } = await supabase
+      .from("profiles")
+      .select("user_id, full_name, register_number, department")
+      .in("user_id", userIds);
+
+    if (profileError) throw profileError;
+
+    const { data: events, error: eventError } = await supabase
+      .from("events")
+      .select("id, title, event_date, start_time, end_time, venue")
+      .in("id", eventIds);
+
+    if (eventError) throw eventError;
+
+    return filtered.map((reg: any) => ({
+      registrationId: reg.id,
+      status: reg.status,
+      updatedAt: reg.updated_at,
+      profile: profiles?.find((p: any) => p.user_id === reg.user_id) || null,
+      event: events?.find((e: any) => e.id === reg.event_id) || null,
+    }));
+  } catch (error) {
+    console.error("Error getting approval records by date:", error);
     return [];
   }
 };

@@ -15,6 +15,7 @@ export interface Event {
   id: string;
   title: string;
   description: string | null;
+  event_type: string | null;
   event_date: string;
   start_time: string;
   end_time: string;

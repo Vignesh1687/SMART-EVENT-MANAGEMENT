@@ -34,16 +34,22 @@ const MyEvents = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">My Events</h1>
+      <h1 className="text-4xl font-bold uppercase tracking-[0.2em] text-white futuristic-title mb-2">My Events</h1>
+      <p className="text-slate-300 mb-6">Your registered events and approvals</p>
       {!registrations?.length ? (
-        <p className="text-muted-foreground text-center py-12">You haven't registered for any events yet.</p>
+        <p className="text-slate-400 text-center py-12">You haven't registered for any events yet.</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {registrations.map((reg: RegistrationWithEvent) => (
             <Card key={reg.id}>
               <CardHeader>
-                <div className="flex items-start justify-between">
-                  <CardTitle className="text-lg">{reg.events?.title}</CardTitle>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-lg">{reg.events?.title}</CardTitle>
+                    {reg.events?.event_type && (
+                      <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{reg.events.event_type}</p>
+                    )}
+                  </div>
                   <Badge variant={reg.status === "approved" ? "default" : reg.status === "rejected" ? "destructive" : "secondary"}>
                     {reg.status}
                   </Badge>
@@ -67,13 +73,16 @@ const MyEvents = () => {
                     size="sm"
                     variant="outline"
                     className="gap-2"
-                    onClick={() =>
-                      generateODLetter({
+                    onClick={async () =>
+                      await generateODLetter({
                         studentName: profile?.full_name || "",
                         registerNumber: profile?.register_number || "",
                         department: profile?.department || "",
                         eventName: reg.events?.title || "",
+                        eventType: reg.events?.event_type || undefined,
                         eventDate: reg.events?.event_date || "",
+                        eventTime: reg.events?.start_time && reg.events?.end_time ? `${format(new Date(`1970-01-01T${reg.events.start_time}`), "hh:mm a")} - ${format(new Date(`1970-01-01T${reg.events.end_time}`), "hh:mm a")}` : undefined,
+                        eventVenue: reg.events?.venue || undefined,
                       })
                     }
                   >

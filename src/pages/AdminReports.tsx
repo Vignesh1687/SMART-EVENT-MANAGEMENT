@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getEventParticipationReport, getSameDayConflictStudents, getStudentParticipationReport, getMultiEventStudents } from "@/lib/admin-reports";
+import { getEventParticipationReport, getSameDayConflictStudents, getStudentParticipationReport, getMultiEventStudents, getApprovalRecordsByDate } from "@/lib/admin-reports";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { formatTime } from "@/lib/conflict-detection";
 import { AlertCircle } from "lucide-react";
-import { ExportReportButton } from "@/components/ExportReportButton";
+import jsPDF from "jspdf";
 
 const AdminReports = () => {
   const { data: eventReport, isLoading: isLoadingEvents } = useQuery({
@@ -36,6 +38,9 @@ const AdminReports = () => {
     },
   });
 
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const selectedDateString = selectedDate.toISOString().slice(0, 10);
+
   const { data: sameDayConflicts, isLoading: isLoadingConflicts } = useQuery({
     queryKey: ["same-day-conflicts"],
     queryFn: async () => {
@@ -44,9 +49,12 @@ const AdminReports = () => {
     },
   });
 
-  const [reportDate, setReportDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().slice(0, 10);
+  const { data: approvalRecords, isLoading: isLoadingApprovals } = useQuery({
+    queryKey: ["approval-records-by-date", selectedDateString],
+    enabled: !!selectedDateString,
+    queryFn: async () => {
+      return await getApprovalRecordsByDate(selectedDateString);
+    },
   });
 
   const getStatusColor = (status: string) => {
@@ -62,36 +70,82 @@ const AdminReports = () => {
     }
   };
 
+  const downloadApprovalPDF = () => {
+    if (!approvalRecords || approvalRecords.length === 0) return;
+
+    const doc = new jsPDF();
+    const title = `Approval Records - ${format(selectedDate, "PPP")}`;
+    doc.setFontSize(16);
+    doc.text(title, 14, 20);
+
+    doc.setFontSize(10);
+    const headers = ["Student", "Reg. No", "Department", "Event", "Status", "Updated At"];
+    headers.forEach((header, index) => {
+      doc.text(header, 14 + index * 30, 30);
+    });
+
+    let y = 38;
+    approvalRecords.forEach((record) => {
+      if (y > 280) {
+        doc.addPage();
+        y = 20;
+      }
+      const profileName = record.profile?.full_name || "—";
+      const regNo = record.profile?.register_number || "—";
+      const department = record.profile?.department || "—";
+      const eventTitle = record.event?.title || "—";
+      const updatedAt = format(new Date(record.updatedAt), "PPP HH:mm");
+
+      const rowValues = [profileName, regNo, department, eventTitle, record.status, updatedAt];
+      rowValues.forEach((value, index) => {
+        doc.text(String(value), 14 + index * 30, y);
+      });
+      y += 8;
+    });
+
+    doc.save(`approval-records-${selectedDateString}.pdf`);
+  };
+
+  const downloadApprovalCSV = () => {
+    if (!approvalRecords || approvalRecords.length === 0) return;
+    const headerRow = ["Student", "Reg. No", "Department", "Event", "Status", "Updated At"];
+    const rows = approvalRecords.map((record) => [
+      record.profile?.full_name || "",
+      record.profile?.register_number || "",
+      record.profile?.department || "",
+      record.event?.title || "",
+      record.status,
+      format(new Date(record.updatedAt), "PPP HH:mm"),
+    ]);
+    const csvContent = [headerRow, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `approval-records-${selectedDateString}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold mb-2">Admin Reports</h1>
-          <p className="text-muted-foreground">View event participation and student engagement analytics</p>
-        </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="flex flex-col gap-2">
-            <label className="flex items-center gap-3 text-sm text-slate-600">
-              <span>Date:</span>
-              <input
-                type="date"
-                value={reportDate}
-                onChange={(event) => setReportDate(event.target.value)}
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-slate-500"
-              />
-            </label>
-            <p className="text-xs text-muted-foreground">Select the date for which approved registrations should be included in the PDF.</p>
-          </div>
-          <ExportReportButton reportDate={reportDate} />
-        </div>
+      <div>
+        <h1 className="text-4xl font-bold uppercase tracking-[0.2em] text-white futuristic-title mb-2">Analytics & Reports</h1>
+        <p className="text-slate-300">View event participation and student engagement analytics</p>
       </div>
 
       <Tabs defaultValue="events" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="events">Event-wise Participation</TabsTrigger>
           <TabsTrigger value="students">Student-wise Participation</TabsTrigger>
           <TabsTrigger value="multi-event">Multi-Event Students</TabsTrigger>
           <TabsTrigger value="same-day">Same-Day Conflicts</TabsTrigger>
+          <TabsTrigger value="calendar">Approval Calendar</TabsTrigger>
         </TabsList>
 
         <TabsContent value="events" className="space-y-4">
@@ -301,6 +355,69 @@ const AdminReports = () => {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="calendar" className="space-y-4">
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Click a date to view approved or rejected registration requests for that day.</p>
+            <div className="grid gap-4 lg:grid-cols-[minmax(280px,320px)_1fr]">
+              <Card className="p-4">
+                <Calendar mode="single" selected={selectedDate} onSelect={(date) => date && setSelectedDate(date)} />
+              </Card>
+              <Card className="p-4">
+                <div className="flex items-center justify-between gap-4 mb-4">
+                  <div>
+                    <h2 className="text-xl font-semibold">Approval Records</h2>
+                    <p className="text-sm text-muted-foreground">Date: {format(selectedDate, "PPP")}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={downloadApprovalPDF} disabled={!approvalRecords || approvalRecords.length === 0}>
+                      Download PDF
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={downloadApprovalCSV} disabled={!approvalRecords || approvalRecords.length === 0}>
+                      Download CSV
+                    </Button>
+                  </div>
+                </div>
+                {isLoadingApprovals ? (
+                  <div className="text-center py-8">Loading...</div>
+                ) : approvalRecords && approvalRecords.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Student</TableHead>
+                        <TableHead>Reg. No</TableHead>
+                        <TableHead>Department</TableHead>
+                        <TableHead>Event</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {approvalRecords.map((record) => (
+                        <TableRow key={record.registrationId}>
+                          <TableCell className="font-medium">{record.profile?.full_name || "—"}</TableCell>
+                          <TableCell>{record.profile?.register_number || "—"}</TableCell>
+                          <TableCell>{record.profile?.department || "—"}</TableCell>
+                          <TableCell>{record.event?.title || "—"}</TableCell>
+                          <TableCell>
+                            <Badge variant={record.status === "approved" ? "default" : "destructive"}>
+                              {record.status}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <Card>
+                    <CardContent className="py-8 text-center text-muted-foreground">
+                      No approvals or rejections found for this date.
+                    </CardContent>
+                  </Card>
+                )}
+              </Card>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

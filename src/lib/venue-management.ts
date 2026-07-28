@@ -2,6 +2,18 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Event } from "@/types/database";
 
 /**
+ * Normalize time to HH:MM:SS format
+ */
+const normalizeTime = (time: string): string => {
+  if (!time) return "00:00:00";
+  const parts = time.split(":");
+  if (parts.length === 2) {
+    return `${parts[0]}:${parts[1]}:00`;
+  }
+  return time;
+};
+
+/**
  * College venue blocks (100 rooms)
  * Named with block numbers and designations
  */
@@ -72,9 +84,11 @@ export const getVenueBlocksStatus = async (): Promise<VenueBlockInfo[]> => {
       if (!blockInfo) continue;
 
       const isToday = event.event_date === todayString;
-      const eventHasEnded = isToday && event.end_time <= currentTime;
+      const normalizedStartTime = normalizeTime(event.start_time);
+      const normalizedEndTime = normalizeTime(event.end_time);
+      const eventHasEnded = isToday && normalizedEndTime <= currentTime;
       const eventIsHappening =
-        isToday && event.start_time <= currentTime && event.end_time > currentTime;
+        isToday && normalizedStartTime <= currentTime && normalizedEndTime > currentTime;
 
       if (eventIsHappening) {
         // RED: Currently occupied
@@ -110,15 +124,18 @@ export const getVenueBlocksStatus = async (): Promise<VenueBlockInfo[]> => {
 export const getStatusColor = (status: VenueBlockStatus): string => {
   switch (status) {
     case "occupied":
-      return "bg-red-100 border-red-500 text-red-900"; // RED: Cannot select
+      // RED: Cannot select - dark theme with rose/red colors
+      return "border-rose-500 bg-rose-500/20 text-rose-300 hover:bg-rose-500/30";
     case "upcoming":
-      return "bg-yellow-100 border-yellow-500 text-yellow-900"; // YELLOW: Waiting for venue
+      // YELLOW: Waiting for venue - dark theme with amber colors
+      return "border-amber-500 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30";
     case "available":
-      return "bg-green-100 border-green-500 text-green-900"; // GREEN: Ready to use
+      // GREEN: Ready to use - dark theme with cyan/green colors
+      return "border-cyan-500 bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30";
     case "error":
-      return "bg-gray-100 border-gray-500 text-gray-900";
+      return "border-slate-500 bg-slate-500/20 text-slate-300";
     default:
-      return "bg-gray-100 border-gray-500 text-gray-900";
+      return "border-slate-500 bg-slate-500/20 text-slate-300";
   }
 };
 

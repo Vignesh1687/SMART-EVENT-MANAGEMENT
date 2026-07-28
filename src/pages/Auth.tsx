@@ -100,11 +100,11 @@ const Auth = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-regno">Register Number</Label>
-                  <Input id="signup-regno" value={signupRegNo} onChange={(e) => setSignupRegNo(e.target.value)} placeholder="e.g. RA2011003010001" />
+                  <Input id="signup-regno" value={signupRegNo} onChange={(e) => setSignupRegNo(e.target.value)} placeholder="e.g. RA2011003010001" required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-dept">Department</Label>
-                  <Input id="signup-dept" value={signupDept} onChange={(e) => setSignupDept(e.target.value)} placeholder="e.g. Computer Science" />
+                  <Input id="signup-dept" value={signupDept} onChange={(e) => setSignupDept(e.target.value)} placeholder="e.g. Computer Science" required />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Creating account..." : "Create Account"}

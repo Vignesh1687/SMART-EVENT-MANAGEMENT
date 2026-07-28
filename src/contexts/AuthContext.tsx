@@ -56,17 +56,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName } },
+      options: {
+        data: {
+          full_name: fullName,
+          register_number: registerNumber || null,
+          department: department || null,
+        },
+      },
     });
-    if (error) throw error;
 
-    const newUser = data?.user ?? data?.session?.user;
-    if (newUser && (registerNumber || department)) {
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({ register_number: registerNumber, department })
-        .eq("user_id", newUser.id);
-      if (profileError) throw profileError;
+    if (error) {
+      if (error.status === 429 || /rate limit/i.test(error.message)) {
+        throw new Error(
+          "Too many signup email requests. Email rate limit exceeded — please wait a short while before retrying."
+        );
+      }
+      throw error;
+    }
+
+    let newUser = data.user ?? data.session?.user ?? null;
+    if (!newUser) {
+      const sessionResult = await supabase.auth.getSession();
+      if (sessionResult.error) throw sessionResult.error;
+      newUser = sessionResult.data.session?.user ?? null;
+    }
+
+    if (newUser) {
+      await supabase.from("profiles").upsert({
+        user_id: newUser.id,
+        full_name: fullName,
+        register_number: registerNumber || null,
+        department: department || null,
+      }, { onConflict: "user_id" });
+      await fetchUserData(newUser.id);
     }
   };
 

@@ -67,9 +67,10 @@ const StudentEvents = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Upcoming Events</h1>
+      <h1 className="text-4xl font-bold uppercase tracking-[0.2em] text-white futuristic-title mb-2">Upcoming Events</h1>
+      <p className="text-slate-300 mb-6">Explore and register for college events</p>
       {!events?.length ? (
-        <p className="text-muted-foreground text-center py-12">No events available yet.</p>
+        <p className="text-slate-400 text-center py-12">No events available yet.</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {events.map((event) => {
@@ -79,7 +80,14 @@ const StudentEvents = () => {
             return (
               <Card key={event.id}>
                 <CardHeader>
-                  <CardTitle className="text-lg">{event.title}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-lg">{event.title}</CardTitle>
+                    {event.event_type && (
+                      <Badge variant="secondary" className="text-xs uppercase tracking-[0.15em]">
+                        {event.event_type}
+                      </Badge>
+                    )}
+                  </div>
                   <CardDescription>{event.description}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">

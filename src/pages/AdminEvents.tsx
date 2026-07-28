@@ -30,6 +30,7 @@ const AdminEvents = () => {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [venue, setVenue] = useState("");
+  const [eventType, setEventType] = useState("");
   const [hasConflict, setHasConflict] = useState(false);
 
   const { data: events, isLoading } = useQuery({
@@ -42,7 +43,7 @@ const AdminEvents = () => {
   });
 
   const resetForm = () => {
-    setTitle(""); setDescription(""); setEventDate(""); setStartTime(""); setEndTime(""); setVenue("");
+    setTitle(""); setDescription(""); setEventType(""); setEventDate(""); setStartTime(""); setEndTime(""); setVenue("");
     setVenueConflict(null);
     setHasConflict(false);
     setEditing(null);
@@ -91,6 +92,7 @@ const AdminEvents = () => {
     setEditing(event);
     setTitle(event.title);
     setDescription(event.description || "");
+    setEventType(event.event_type || "");
     setEventDate(event.event_date);
     setStartTime(event.start_time);
     setEndTime(event.end_time);
@@ -149,6 +151,7 @@ const AdminEvents = () => {
       const payload = {
         title,
         description,
+        event_type: eventType || null,
         event_date: eventDate,
         start_time: startTimeFormatted,
         end_time: endTimeFormatted,
@@ -215,9 +218,12 @@ const AdminEvents = () => {
   });
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Manage Events</h1>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-4xl font-bold uppercase tracking-[0.2em] text-white futuristic-title mb-2">Manage Events</h1>
+          <p className="text-slate-300">Create, edit, and manage all events</p>
+        </div>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
           <DialogTrigger asChild>
             <Button className="gap-2"><Plus className="h-4 w-4" /> New Event</Button>
@@ -270,9 +276,40 @@ const AdminEvents = () => {
                   </AlertDescription>
                 </Alert>
               )}
+              {!venueConflict && venue && eventDate && startTime && endTime && (
+                <Alert className="border-green-600 bg-green-50">
+                  <AlertCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-800 font-bold">
+                    ✅ VENUE AVAILABLE
+                    <div className="mt-2 text-sm font-normal">
+                      <strong>{venue}</strong> is available from <strong>{startTime}–{endTime}</strong> on <strong>{eventDate}</strong>
+                    </div>
+                    <div className="mt-2 text-sm font-normal text-green-700">
+                      You can proceed with creating this event.
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
               <div className="space-y-2">
                 <Label>Title</Label>
                 <Input value={title} onChange={(e) => setTitle(e.target.value)} required />
+              </div>
+              <div className="space-y-2">
+                <Label>Event Type</Label>
+                <select
+                  value={eventType}
+                  onChange={(e) => setEventType(e.target.value)}
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="">Select event type</option>
+                  <option value="Hackathon">Hackathon</option>
+                  <option value="NCC">NCC</option>
+                  <option value="Games">Games</option>
+                  <option value="Cultural">Cultural</option>
+                  <option value="Workshop">Workshop</option>
+                  <option value="Seminar">Seminar</option>
+                  <option value="Other">Other</option>
+                </select>
               </div>
               <div className="space-y-2">
                 <Label>Description</Label>
@@ -357,6 +394,7 @@ const AdminEvents = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Title</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Time</TableHead>
                 <TableHead>Venue</TableHead>
@@ -367,6 +405,7 @@ const AdminEvents = () => {
               {events?.map((event) => (
                 <TableRow key={event.id}>
                   <TableCell className="font-medium">{event.title}</TableCell>
+                  <TableCell>{event.event_type || "—"}</TableCell>
                   <TableCell>{format(new Date(event.event_date), "PPP")}</TableCell>
                   <TableCell>{formatTime(event.start_time)}–{formatTime(event.end_time)}</TableCell>
                   <TableCell>{event.venue || "—"}</TableCell>
@@ -377,7 +416,7 @@ const AdminEvents = () => {
                 </TableRow>
               ))}
               {!events?.length && (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No events yet</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No events yet</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

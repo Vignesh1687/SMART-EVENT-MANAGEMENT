@@ -100,6 +100,92 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-slate-950 text-foreground;
+    background: linear-gradient(135deg, #0f172a 0%, #1a1a2e 50%, #16213e 100%);
+    min-height: 100vh;
+  }
+
+  html {
+    background: linear-gradient(135deg, #0f172a 0%, #1a1a2e 50%, #16213e 100%);
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-slate-950/75 backdrop-blur-2xl border border-white/10;
+    background: rgba(15, 23, 42, 0.75);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+  }
+
+  .glass-card {
+    @apply bg-slate-950/85 backdrop-blur-2xl border border-white/10;
+    background: rgba(15, 23, 42, 0.85);
+    box-shadow: 0 24px 84px -30px rgba(15, 23, 42, 0.9);
+  }
+
+  .glitch {
+    position: relative;
+    animation: glitch-anim 0.3s;
+  }
+
+  .futuristic-title {
+    text-shadow: 0 0 20px rgba(34, 211, 238, 0.5),
+                 0 0 40px rgba(34, 211, 238, 0.3);
+    letter-spacing: 0.15em;
+  }
+
+  .hero-glow {
+    box-shadow: 0 0 60px 20px rgba(34, 211, 238, 0.3),
+                0 0 100px 40px rgba(99, 102, 241, 0.2);
+  }
+
+  .animate-blob {
+    animation: float-slow 8s infinite;
+  }
+}
+
+@keyframes glitch-anim {
+  0% {
+    clip-path: inset(40% 0 61% 0);
+    transform: translate(-2px, -2px);
+  }
+  20% {
+    clip-path: inset(92% 0 1% 0);
+    transform: translate(2px, 2px);
+  }
+  40% {
+    clip-path: inset(43% 0 1% 0);
+    transform: translate(-2px, 2px);
+  }
+  60% {
+    clip-path: inset(25% 0 58% 0);
+    transform: translate(2px, -2px);
+  }
+  80% {
+    clip-path: inset(54% 0 7% 0);
+    transform: translate(-2px, -2px);
+  }
+  100% {
+    clip-path: inset(58% 0 43% 0);
+    transform: translate(2px, 2px);
+  }
+}
+
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px);
+    opacity: 0.5;
+  }
+  25% {
+    transform: translateY(-20px) translateX(10px);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateY(-40px) translateX(-10px);
+    opacity: 0.4;
+  }
+  75% {
+    transform: translateY(-20px) translateX(20px);
+    opacity: 0.5;
   }
 }

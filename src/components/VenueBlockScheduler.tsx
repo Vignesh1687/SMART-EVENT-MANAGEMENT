@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -16,30 +16,85 @@ export const VenueBlockScheduler = () => {
   const [loading, setLoading] = useState(true);
   const [searchBuilding, setSearchBuilding] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | "available" | "occupied" | "upcoming">("all");
+  
+  const isScrollingRef = useRef(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastBlocksRef = useRef<string>("");
+
+  // Memoized load function
+  const loadBlocks = useCallback(async () => {
+    // Skip if scrolling
+    if (isScrollingRef.current) return;
+    
+    try {
+      const blockStatus = await getVenueBlocksStatus();
+      const blocksJson = JSON.stringify(blockStatus);
+      
+      // Only update if data changed (prevent unnecessary re-renders)
+      if (lastBlocksRef.current !== blocksJson) {
+        lastBlocksRef.current = blocksJson;
+        setBlocks(blockStatus);
+      }
+      
+      setLoading(false);
+    } catch (error) {
+      console.error("Error loading blocks:", error);
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const loadBlocks = async (showLoading = false) => {
-      if (showLoading) {
-        setLoading(true);
-      }
+    // Initial load
+    setLoading(true);
+    loadBlocks();
+  }, [loadBlocks]);
 
-      const blockStatus = await getVenueBlocksStatus();
-      setBlocks((prevBlocks) => {
-        const isEqual = JSON.stringify(prevBlocks) === JSON.stringify(blockStatus);
-        return isEqual ? prevBlocks : blockStatus;
-      });
-
-      if (showLoading) {
-        setLoading(false);
+  // Setup scroll listener
+  useEffect(() => {
+    const handleScroll = () => {
+      isScrollingRef.current = true;
+      
+      // Clear existing timeout
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
       }
+      
+      // Resume refresh 2 seconds after scroll stops
+      scrollTimeoutRef.current = setTimeout(() => {
+        isScrollingRef.current = false;
+      }, 2000);
     };
 
-    loadBlocks(true);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Setup refresh interval (only refresh when not scrolling)
+  useEffect(() => {
+    // Don't start interval until first load is complete
+    if (loading) return;
     
-    // Refresh every 5 seconds instead of 30 for real-time updates
-    const interval = setInterval(() => loadBlocks(false), 5000);
+    // Set up interval that calls loadBlocks
+    intervalRef.current = setInterval(() => {
+      loadBlocks();
+    }, 5000);
     
-    // Also refetch when page becomes visible (tab focus)
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [loadBlocks, loading]);
+
+  // Handle tab visibility
+  useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         loadBlocks(false);
@@ -49,10 +104,9 @@ export const VenueBlockScheduler = () => {
     document.addEventListener("visibilitychange", handleVisibilityChange);
     
     return () => {
-      clearInterval(interval);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, []);
+  }, [loadBlocks]);
 
   const filteredBlocks = blocks.filter((block) => {
     if (searchBuilding && !block.venue.name.toLowerCase().includes(searchBuilding.toLowerCase())) {
@@ -78,55 +132,56 @@ export const VenueBlockScheduler = () => {
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-3 gap-4">
-        <Card className="bg-green-50 border-green-200">
+        <Card className="glass-card border-2 border-cyan-500/50 bg-gradient-to-br from-cyan-500/30 to-cyan-500/5 backdrop-blur-2xl shadow-[0_20px_60px_-15px_rgba(34,211,238,0.4)]">
           <CardContent className="pt-6">
             <div className="text-center">
-              <div className="text-3xl font-bold text-green-600">{statusCounts.available}</div>
-              <div className="text-sm text-green-700">Available Blocks</div>
+              <div className="text-6xl font-bold text-cyan-300 drop-shadow-lg">{statusCounts.available}</div>
+              <div className="text-sm text-cyan-200 font-semibold uppercase tracking-wide">Available Blocks</div>
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-yellow-50 border-yellow-200">
+        <Card className="glass-card border-2 border-amber-500/50 bg-gradient-to-br from-amber-500/30 to-amber-500/5 backdrop-blur-2xl shadow-[0_20px_60px_-15px_rgba(251,146,60,0.4)]">
           <CardContent className="pt-6">
             <div className="text-center">
-              <div className="text-3xl font-bold text-yellow-600">{statusCounts.upcoming}</div>
-              <div className="text-sm text-yellow-700">Upcoming Events</div>
+              <div className="text-6xl font-bold text-amber-300 drop-shadow-lg">{statusCounts.upcoming}</div>
+              <div className="text-sm text-amber-200 font-semibold uppercase tracking-wide">Upcoming Events</div>
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-red-50 border-red-200">
+        <Card className="glass-card border-2 border-rose-500/50 bg-gradient-to-br from-rose-500/30 to-rose-500/5 backdrop-blur-2xl shadow-[0_20px_60px_-15px_rgba(244,63,94,0.4)]">
           <CardContent className="pt-6">
             <div className="text-center">
-              <div className="text-3xl font-bold text-red-600">{statusCounts.occupied}</div>
-              <div className="text-sm text-red-700">Occupied Blocks</div>
+              <div className="text-6xl font-bold text-rose-300 drop-shadow-lg">{statusCounts.occupied}</div>
+              <div className="text-sm text-rose-200 font-semibold uppercase tracking-wide">Occupied Blocks</div>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="glass-card border-white/10 bg-slate-950/70 backdrop-blur-2xl">
         <CardHeader>
-          <CardTitle>Filters & Search</CardTitle>
+          <CardTitle className="text-white">Filters & Search</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="search">Search Block</Label>
+              <Label htmlFor="search" className="text-slate-300">Search Block</Label>
               <Input
                 id="search"
                 placeholder="e.g., Block A-1, Building B..."
                 value={searchBuilding}
                 onChange={(e) => setSearchBuilding(e.target.value)}
+                className="bg-slate-900/70 border-slate-700 text-white placeholder-slate-500"
               />
             </div>
             <div>
-              <Label htmlFor="status-filter">Filter by Status</Label>
+              <Label htmlFor="status-filter" className="text-slate-300">Filter by Status</Label>
               <select
                 id="status-filter"
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value as "all" | "available" | "occupied" | "upcoming")}
-                className="w-full border rounded px-3 py-2"
+                className="w-full border border-slate-700 rounded px-3 py-2 bg-slate-900/70 text-white"
               >
                 <option value="all">All Blocks</option>
                 <option value="available">Available Only</option>
@@ -139,21 +194,21 @@ export const VenueBlockScheduler = () => {
       </Card>
 
       {/* Venue Blocks Grid */}
-      <Card>
+      <Card className="glass-card border-white/10 bg-slate-950/70 backdrop-blur-2xl">
         <CardHeader>
-          <CardTitle>Venue Blocks ({filteredBlocks.length})</CardTitle>
+          <CardTitle className="text-white">Venue Blocks ({filteredBlocks.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {filteredBlocks.map((block) => (
               <div
                 key={block.venue.id}
-                className={`border-2 rounded-lg p-3 transition-all cursor-pointer hover:shadow-lg ${getStatusColor(
+                className={`border-2 rounded-xl p-3 transition-all cursor-pointer hover:shadow-2xl hover:scale-105 ${getStatusColor(
                   block.status
                 )}`}
               >
                 {/* Block Name */}
-                <div className="font-bold text-sm mb-2">{block.venue.name}</div>
+                <div className="font-bold text-sm mb-2 text-white">{block.venue.name}</div>
 
                 {/* Status Badge */}
                 <Badge variant="outline" className="mb-2 text-xs w-full justify-center">
@@ -200,31 +255,31 @@ export const VenueBlockScheduler = () => {
       </Card>
 
       {/* Legend */}
-      <Card>
+      <Card className="glass-card border-white/10 bg-slate-950/70 backdrop-blur-2xl">
         <CardHeader>
-          <CardTitle>Legend</CardTitle>
+          <CardTitle className="text-white">Legend</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-red-100 border-2 border-red-500 rounded"></div>
+            <div className="flex items-center gap-2 p-3 rounded-lg border border-rose-500/30 bg-rose-500/10">
+              <div className="w-6 h-6 bg-rose-500/40 border-2 border-rose-500 rounded"></div>
               <div className="text-sm">
-                <div className="font-semibold">RED - Occupied</div>
-                <div className="text-xs text-gray-600">Cannot select, event in progress</div>
+                <div className="font-semibold text-rose-300">RED - Occupied</div>
+                <div className="text-xs text-rose-200">Cannot select, event in progress</div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-yellow-100 border-2 border-yellow-500 rounded"></div>
+            <div className="flex items-center gap-2 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10">
+              <div className="w-6 h-6 bg-amber-500/40 border-2 border-amber-500 rounded"></div>
               <div className="text-sm">
-                <div className="font-semibold">YELLOW - Upcoming</div>
-                <div className="text-xs text-gray-600">Next event queued after current</div>
+                <div className="font-semibold text-amber-300">YELLOW - Upcoming</div>
+                <div className="text-xs text-amber-200">Next event queued after current</div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-green-100 border-2 border-green-500 rounded"></div>
+            <div className="flex items-center gap-2 p-3 rounded-lg border border-cyan-500/30 bg-cyan-500/10">
+              <div className="w-6 h-6 bg-cyan-500/40 border-2 border-cyan-500 rounded"></div>
               <div className="text-sm">
-                <div className="font-semibold">GREEN - Available</div>
-                <div className="text-xs text-gray-600">Ready to book for new events</div>
+                <div className="font-semibold text-cyan-300">GREEN - Available</div>
+                <div className="text-xs text-cyan-200">Ready to book for new events</div>
               </div>
             </div>
           </div>

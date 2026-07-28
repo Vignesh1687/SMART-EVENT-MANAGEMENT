@@ -133,13 +133,11 @@ const AdminRegistrations = () => {
   });
 
   return (
-    <div>
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Registrations</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Review student registrations and approve or reject pending requests directly from the admin portal.
-          </p>
+          <h1 className="text-4xl font-bold uppercase tracking-[0.2em] text-white futuristic-title mb-2">Registrations</h1>
+          <p className="text-slate-300">Manage student event registrations and approvals</p>
         </div>
         <Select value={filterEvent} onValueChange={setFilterEvent}>
           <SelectTrigger className="w-[200px]">
